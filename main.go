@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/terminal"
 	"os"
 )
 
@@ -99,6 +100,13 @@ func main() {
 
 	// Pipe input from std
 	go func() {
+		fileDescriptor := int(os.Stdin.Fd())
+		originalState, err := terminal.MakeRaw(fileDescriptor)
+		if err != nil {
+			LogPanic(fmt.Errorf("failed to make raw terminal: %w", err))
+		}
+		defer terminal.Restore(fileDescriptor, originalState)
+
 		if err := inPipe(os.Stdin, sshStdIn, session.WindowChange); err != nil {
 			LogPanic(fmt.Errorf("failed to in-pipe stdin: %w", err))
 		}
@@ -115,7 +123,7 @@ func main() {
 
 	// Setup terminal
 	modes := ssh.TerminalModes{
-		ssh.ECHO:          0,
+		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}
