@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func pipe(from io.Reader, to io.Writer) {
+func pipe(from io.Reader, to io.Writer) error {
 	buf := make([]byte, DefaultBufferSize)
 	for {
 		n, err := from.Read(buf)
@@ -16,14 +16,16 @@ func pipe(from io.Reader, to io.Writer) {
 			if errors.Is(err, io.EOF) {
 				break
 			} else {
-				LogPanic(fmt.Errorf("failed to read from reader: %w", err))
+				return fmt.Errorf("failed to read from reader: %w", err)
 			}
 		}
 
 		if _, err := to.Write(buf[:n]); err != nil {
-			LogPanic(fmt.Errorf("failed to write to writer: %w", err))
+			return fmt.Errorf("failed to write to writer: %w", err)
 		}
 	}
+
+	return nil
 }
 
 func procWindowChangeEvent(eventPayload string, windowResize func(h int, w int) error) error {
