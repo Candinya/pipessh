@@ -12,9 +12,9 @@ const (
 )
 
 const (
-	EventNameHostKeyNew     = "hostKeyNew"     // new host, never seen before
-	EventNameHostKeyChanged = "hostKeyChanged" // old host with new key
-	EventNameSSHStart       = "sshStart"       // pipe stdin/stdout/stderr to ssh from now on
+	EventNameServerKeyNew     = "serverKeyNew"     // new server, never seen before
+	EventNameServerKeyChanged = "serverKeyChanged" // old server with new key
+	EventNameSSHStart         = "sshStart"         // pipe stdin/stdout/stderr to ssh from now on
 )
 
 type EventPayloadHostKeyNew struct {
