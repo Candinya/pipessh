@@ -130,7 +130,7 @@ func main() {
 	}
 
 	// Request pseudo terminal
-	if err := session.RequestPty("xterm", 24, 80, modes); err != nil {
+	if err := session.RequestPty("xterm-256color", 24, 80, modes); err != nil {
 		LogPanic(fmt.Errorf("failed to request pty: %w", err))
 	}
 
