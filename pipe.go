@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -65,6 +66,13 @@ func inPipe(from io.Reader, to io.Writer, windowResize func(h int, w int) error)
 		n, err := from.Read(inBuf)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				if evSize > 0 {
+					// Still contain event cache data, send them all
+					_, err = to.Write(eventBuf[:evSize])
+					if err != nil {
+						return fmt.Errorf("failed to pipe to stdin: %w", err)
+					}
+				}
 				break
 			} else {
 				return fmt.Errorf("failed to read from stdin: %w", err)
@@ -112,11 +120,26 @@ func inPipe(from io.Reader, to io.Writer, windowResize func(h int, w int) error)
 				}
 
 				// else: suffix match, message complete
-				eventPayload := string(eventBuf[EscapeWindowChangePrefixLen : evSize+start]) // discard prefix and suffix
-				err = procWindowChangeEvent(eventPayload, windowResize)
+				// Maybe contain some incomplete event fragments, so go reversely to find if any prefix match
+				eventPayloadSliceFrom := EscapeWindowChangePrefixLen // discard prefix
+				eventPayload := eventBuf[:evSize+start]              // discard suffix
+				eventPrefixLastIndex := bytes.LastIndex(eventPayload, EscapeWindowChangePrefix)
+				if eventPrefixLastIndex != 0 {
+					// Include invalid events
+
+					// Send invalid events as raw content to writer
+					_, err = to.Write(eventPayload[:eventPrefixLastIndex])
+					if err != nil {
+						return fmt.Errorf("failed to pipe to stdin: %w", err)
+					}
+
+					// Slice from new location
+					eventPayloadSliceFrom = eventPrefixLastIndex + EscapeWindowChangePrefixLen
+				}
+				err = procWindowChangeEvent(string(eventPayload[eventPayloadSliceFrom:]), windowResize)
 				if err != nil {
 					// Unable to handle this, send buffered event data to server
-					_, err = to.Write(eventBuf[:evSize])
+					_, err = to.Write(eventBuf[eventPrefixLastIndex:evSize])
 					if err != nil {
 						return fmt.Errorf("failed to pipe to stdin: %w", err)
 					}
@@ -191,12 +214,27 @@ func inPipe(from io.Reader, to io.Writer, windowResize func(h int, w int) error)
 		}
 
 		// else: event all extracted! time to analyse
-		eventPayload := string(eventBuf[EscapeWindowChangePrefixLen:evSize]) // discard prefix and suffix
-		err = procWindowChangeEvent(eventPayload, windowResize)
+		// Maybe contain some incomplete event fragments, so go reversely to find if any prefix match
+		eventPayloadSliceFrom := EscapeWindowChangePrefixLen // discard prefix
+		eventPayload := eventBuf[:evSize]                    // discard suffix
+		eventPrefixLastIndex := bytes.LastIndex(eventPayload, EscapeWindowChangePrefix)
+		if eventPrefixLastIndex != 0 {
+			// Include invalid events
+
+			// Send invalid events as raw content to writer
+			_, err = to.Write(eventPayload[:eventPrefixLastIndex])
+			if err != nil {
+				return fmt.Errorf("failed to pipe to stdin: %w", err)
+			}
+
+			// Slice from new location
+			eventPayloadSliceFrom = eventPrefixLastIndex + EscapeWindowChangePrefixLen
+		}
+		err = procWindowChangeEvent(string(eventPayload[eventPayloadSliceFrom:]), windowResize)
 		if err != nil {
 			// Something is wrong, we can't handle this event, so send without processing
-			evSize = 0                    // reset
-			_, err = to.Write(inBuf[i:n]) // Send everything
+			evSize = 0                                           // reset
+			_, err = to.Write(inBuf[i+eventPrefixLastIndex : n]) // Send everything
 			if err != nil {
 				return fmt.Errorf("failed to proc window change event: %w", err)
 			}
