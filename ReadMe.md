@@ -23,6 +23,6 @@
 
 ## 致谢
 
-- 基础流程参考 https://medium.com/better-programming/a-simple-cross-platform-ssh-client-in-100-lines-of-go-280644d8beea
-- 交互机制参考 https://stackoverflow.com/questions/28921409/how-can-i-send-terminal-escape-sequences-through-ssh-with-go
-- 跳板机逻辑 https://stackoverflow.com/questions/35906991/go-x-crypto-ssh-how-to-establish-ssh-connection-to-private-instance-over-a-ba
+- 基础流程参考 [A Simple Cross-Platform SSH Client in 100 Lines of Go](https://medium.com/better-programming/a-simple-cross-platform-ssh-client-in-100-lines-of-go-280644d8beea)
+- 交互机制参考 [Yevgeniy Brikman's answer - How can I send terminal escape sequences through SSH with Go?](https://stackoverflow.com/questions/28921409/how-can-i-send-terminal-escape-sequences-through-ssh-with-go/37088088#37088088)
+- 跳板机逻辑 [Mr_Pink's answer - Go x/crypto/ssh -- How to establish ssh connection to private instance over a bastion node](https://stackoverflow.com/questions/35906991/go-x-crypto-ssh-how-to-establish-ssh-connection-to-private-instance-over-a-ba/35924799#35924799)
