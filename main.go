@@ -85,23 +85,16 @@ func main() {
 
 	defer sshStdIn.Close()
 
-	// Prepare close chan
-	exitChan := make(chan interface{}, 1)
-
 	// Pipe output to std
 	go func() {
 		if err := pipe(sshStdout, os.Stdout); err != nil {
 			LogPanic(fmt.Errorf("failed to pipe stdout: %w", err))
 		}
-		// If it returns means remote host closed a connection
-		exitChan <- interface{}(nil)
 	}()
 	go func() {
 		if err := pipe(sshStderr, os.Stderr); err != nil {
 			LogPanic(fmt.Errorf("failed to pipe stderr: %w", err))
 		}
-		// If it returns means remote host closed a connection
-		exitChan <- interface{}(nil)
 	}()
 
 	// Pipe input from std
@@ -109,8 +102,6 @@ func main() {
 		if err := inPipe(os.Stdin, sshStdIn, session.WindowChange); err != nil {
 			LogPanic(fmt.Errorf("failed to in-pipe stdin: %w", err))
 		}
-		// If it returns means remote host closed a connection
-		exitChan <- interface{}(nil)
 	}()
 
 	// Loading finish, start
@@ -140,8 +131,7 @@ func main() {
 	}
 
 	// Wait till end
-	select {
-	case <-exitChan:
-		return // exit
+	if err = session.Wait(); err != nil {
+		LogPanic(fmt.Errorf("failed to wait: %w", err))
 	}
 }
