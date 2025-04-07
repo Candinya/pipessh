@@ -142,39 +142,36 @@ func Test_parseServer(t *testing.T) {
 			// Exec and collect error
 			gotOut, err := parseServer(testcase.server)
 			if err != nil {
-				t.Logf("Unexpected error: %v", err)
-				t.Fail()
+				t.Errorf("Unexpected error: %v", err)
 			}
 
 			// Compare out
 			if testcase.wantOut.Username != nil {
 				if gotOut.Username == nil {
-					t.Logf("Unexpected nil username")
-					t.Fail()
+					t.Errorf("Unexpected nil username")
 				} else if *testcase.wantOut.Username != *gotOut.Username {
-					t.Logf("Unexpected username: expected %q, got %q", *testcase.wantOut.Username, *gotOut.Username)
-					t.Fail()
+					t.Errorf("Unexpected username: expected %q, got %q", *testcase.wantOut.Username, *gotOut.Username)
 				}
+			} else if gotOut.Username != nil {
+				t.Errorf("Unexpected username: got %q", *gotOut.Username)
 			}
 
 			if testcase.wantOut.Password != nil {
 				if gotOut.Password == nil {
-					t.Logf("Unexpected nil password")
-					t.Fail()
+					t.Errorf("Unexpected nil password")
 				} else if *testcase.wantOut.Password != *gotOut.Password {
-					t.Logf("Unexpected password: expected %q, got %q", *testcase.wantOut.Password, *gotOut.Password)
-					t.Fail()
+					t.Errorf("Unexpected password: expected %q, got %q", *testcase.wantOut.Password, *gotOut.Password)
 				}
+			} else if gotOut.Password != nil {
+				t.Errorf("Unexpected password: got %q", *gotOut.Password)
 			}
 
 			if testcase.wantOut.Host != gotOut.Host {
-				t.Logf("Unexpected host: expected %q, got %q", testcase.wantOut.Host, gotOut.Host)
-				t.Fail()
+				t.Errorf("Unexpected host: expected %q, got %q", testcase.wantOut.Host, gotOut.Host)
 			}
 
 			if testcase.wantOut.Port != gotOut.Port {
-				t.Logf("Unexpected port: expected %d, got %d", testcase.wantOut.Port, gotOut.Port)
-				t.Fail()
+				t.Errorf("Unexpected port: expected %d, got %d", testcase.wantOut.Port, gotOut.Port)
 			}
 		})
 	}

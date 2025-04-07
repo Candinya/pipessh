@@ -51,6 +51,14 @@ func main() {
 		}
 	}
 
+	// Prepare stdin
+	fileDescriptor := int(os.Stdin.Fd())
+	originalState, err := terminal.MakeRaw(fileDescriptor)
+	if err != nil {
+		LogPanic(fmt.Errorf("failed to make raw terminal: %w", err))
+	}
+	defer terminal.Restore(fileDescriptor, originalState)
+
 	// Dial
 	targetClient, jumpClient, err := sshDial(targetServer, targetConfig, jumpServer, jumpConfig)
 	if err != nil {
@@ -100,13 +108,6 @@ func main() {
 
 	// Pipe input from std
 	go func() {
-		fileDescriptor := int(os.Stdin.Fd())
-		originalState, err := terminal.MakeRaw(fileDescriptor)
-		if err != nil {
-			LogPanic(fmt.Errorf("failed to make raw terminal: %w", err))
-		}
-		defer terminal.Restore(fileDescriptor, originalState)
-
 		if err := inPipe(os.Stdin, sshStdIn, session.WindowChange); err != nil {
 			LogPanic(fmt.Errorf("failed to in-pipe stdin: %w", err))
 		}

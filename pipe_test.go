@@ -354,21 +354,18 @@ func Test_inPipe(t *testing.T) {
 
 			// Exec and collect error
 			if err := inPipe(r, resBuf, windowResize); err != nil {
-				t.Logf("Unexpected error: %v", err)
-				t.Fail()
+				t.Errorf("Unexpected error: %v", err)
 			}
 
 			// Compare out
 			resStr := resBuf.String()
 			if resStr != testcase.wantOut {
-				t.Logf("Unexpected output: expected %q, got %q", testcase.wantOut, resStr)
-				t.Fail()
+				t.Errorf("Unexpected output: expected %q, got %q", testcase.wantOut, resStr)
 			}
 
 			// Compare window size
 			if rows != testcase.wantRows || cols != testcase.wantCols {
-				t.Logf("Unexpected window size: expected %dx%d, got %dx%d", testcase.wantRows, testcase.wantCols, rows, cols)
-				t.Fail()
+				t.Errorf("Unexpected window size: expected %dx%d, got %dx%d", testcase.wantRows, testcase.wantCols, rows, cols)
 			}
 
 		})

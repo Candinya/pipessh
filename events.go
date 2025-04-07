@@ -12,21 +12,18 @@ const (
 )
 
 const (
-	EventNameServerKeyNew     = "serverKeyNew"     // new server, never seen before
-	EventNameServerKeyChanged = "serverKeyChanged" // old server with new key
-	EventNameSSHStart         = "sshStart"         // pipe stdin/stdout/stderr to ssh from now on
+	EventNameHostKey  = "hostKey"  // new server, never seen before
+	EventNameSSHStart = "sshStart" // pipe stdin/stdout/stderr to ssh from now on
 )
 
-type EventPayloadHostKeyNew struct {
-	Fingerprint string `json:"fp"`
+type EventPayloadHostKey struct {
+	Host            string   `json:"h"`
+	HostWithSameKey []string `json:"s,omitempty"`
+	OldPublicKey    *string  `json:"o,omitempty"`
+	PublicKey       string   `json:"k"`
 }
 
-type EventPayloadHostKeyChanged struct {
-	OldFingerprint string `json:"ofp"`
-	Fingerprint    string `json:"fp"`
-}
-
-func buildEvent(name string, payload *any) ([]byte, error) {
+func buildEvent(name string, payload any) ([]byte, error) {
 	data := []byte{EventTransmitStart}
 	data = append(data, name...)
 	if payload != nil {

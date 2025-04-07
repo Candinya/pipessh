@@ -35,12 +35,12 @@ func parseServer(connStr string) (*Server, error) {
 				}
 			} else {
 				// Only IPv6, no port
-				s.Port = DefaultServerPort
+				s.Port = DefaultSSHPort
 			}
 		} else {
 			// Just raw IPv6
 			s.Host = serverStr
-			s.Port = DefaultServerPort
+			s.Port = DefaultSSHPort
 		}
 	} else {
 		// FQDN or IPv4
@@ -51,7 +51,7 @@ func parseServer(connStr string) (*Server, error) {
 				return nil, fmt.Errorf("invalid server port %s", serverInfo[1])
 			}
 		} else {
-			s.Port = DefaultServerPort
+			s.Port = DefaultSSHPort
 		}
 	}
 
