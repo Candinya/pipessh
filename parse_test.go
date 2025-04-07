@@ -44,7 +44,7 @@ func Test_parseServer(t *testing.T) {
 			name:   "IPv6 Port",
 			server: "[fe80::1]:2233",
 			wantOut: Server{
-				Host: "[fe80::1]",
+				Host: "fe80::1",
 				Port: 2233,
 			},
 		},
@@ -52,7 +52,15 @@ func Test_parseServer(t *testing.T) {
 			name:   "IPv6 only",
 			server: "[fe80::1]",
 			wantOut: Server{
-				Host: "[fe80::1]",
+				Host: "fe80::1",
+				Port: 22,
+			},
+		},
+		{
+			name:   "IPv6 raw",
+			server: "fe80::1",
+			wantOut: Server{
+				Host: "fe80::1",
 				Port: 22,
 			},
 		},
@@ -90,7 +98,27 @@ func Test_parseServer(t *testing.T) {
 			wantOut: Server{
 				Username: p("candinya"),
 				Password: p("password"),
-				Host:     "[fe80::1]",
+				Host:     "fe80::1",
+				Port:     22,
+			},
+		},
+		{
+			name:   "IPv6 Port Username Password",
+			server: "candinya:password@[fe80::1]:2233",
+			wantOut: Server{
+				Username: p("candinya"),
+				Password: p("password"),
+				Host:     "fe80::1",
+				Port:     2233,
+			},
+		},
+		{
+			name:   "IPv6 raw Username Password",
+			server: "candinya:password@fe80::1",
+			wantOut: Server{
+				Username: p("candinya"),
+				Password: p("password"),
+				Host:     "fe80::1",
 				Port:     22,
 			},
 		},
@@ -122,25 +150,31 @@ func Test_parseServer(t *testing.T) {
 			if testcase.wantOut.Username != nil {
 				if gotOut.Username == nil {
 					t.Logf("Unexpected nil username")
+					t.Fail()
 				} else if *testcase.wantOut.Username != *gotOut.Username {
 					t.Logf("Unexpected username: expected %q, got %q", *testcase.wantOut.Username, *gotOut.Username)
+					t.Fail()
 				}
 			}
 
 			if testcase.wantOut.Password != nil {
 				if gotOut.Password == nil {
 					t.Logf("Unexpected nil password")
+					t.Fail()
 				} else if *testcase.wantOut.Password != *gotOut.Password {
 					t.Logf("Unexpected password: expected %q, got %q", *testcase.wantOut.Password, *gotOut.Password)
+					t.Fail()
 				}
 			}
 
 			if testcase.wantOut.Host != gotOut.Host {
 				t.Logf("Unexpected host: expected %q, got %q", testcase.wantOut.Host, gotOut.Host)
+				t.Fail()
 			}
 
 			if testcase.wantOut.Port != gotOut.Port {
 				t.Logf("Unexpected port: expected %d, got %d", testcase.wantOut.Port, gotOut.Port)
+				t.Fail()
 			}
 		})
 	}
