@@ -23,7 +23,7 @@ type EventPayloadHostKeyNew struct {
 
 type EventPayloadHostKeyChanged struct {
 	OldFingerprint string `json:"ofp"`
-	NewFingerprint string `json:"nfp"`
+	Fingerprint    string `json:"fp"`
 }
 
 func buildEvent(name string, payload *any) ([]byte, error) {
