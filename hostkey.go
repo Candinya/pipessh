@@ -48,7 +48,7 @@ func hostKeyHandler(hostname string, remote net.Addr, key ssh.PublicKey) error {
 	// No matching result found, prepare event
 	evPayload := EventPayloadHostKey{
 		Host:      friendlyHostname,
-		PublicKey: string(key.Marshal()),
+		PublicKey: string(ssh.MarshalAuthorizedKey(key)),
 	}
 
 	if oldKey == nil {
@@ -56,7 +56,7 @@ func hostKeyHandler(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		evPayload.HostWithSameKey = hostsWithSameKey // Could be nil, but that's expected
 	} else {
 		// Server change its key
-		evPayload.OldPublicKey = p(string((*oldKey).Marshal()))
+		evPayload.OldPublicKey = p(string(ssh.MarshalAuthorizedKey(*oldKey)))
 	}
 
 	// Send event
