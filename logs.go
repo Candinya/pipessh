@@ -8,5 +8,5 @@ func LogError(err error) {
 
 func LogPanic(err error) {
 	LogError(err)
-	panic(err)
+	os.Exit(1)
 }
