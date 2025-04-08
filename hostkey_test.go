@@ -139,6 +139,17 @@ func Test_findServer(t *testing.T) {
 			wantRelevantLineStart: 92, wantRelevantLineEnd: 92,
 		},
 		{
+			name:                  "new server (completely different) (without newline)",
+			knownHosts:            "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+			rawHostname:           "code.nya.work",
+			rawAddr:               "",
+			key:                   "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDE5MJr0aoKPww+tjzyyQpl4G9v2neCw/SUqKg0CmxO7lrOit0oll9dJTXZA4irI0y/04+5SEoZiRbPFcKqgZOAGB6Pl2Z1EPO8xdY/WU5lnkgtzAqCiAwgJ6DvZ3i0+fvYx25lPZmA6rDJTQoTSL5DJd50IXAtf/j415jc46gLirU2ipQKWcGKQpd5LjUAsmPiHfN1AhX93WJqvjyTLQVRp4ufvQxYmJYCxMN2oT6kRbYt2c1J8gxqbQoGjPbdKPnd+2/1bpd8Tovt0mw1/grQ427Cdsel1JypMtz5Tr42kJh3damTn+VjzCqDtEdPhE4Muo4ifFA7zAUgEqosyHyzbUiWsmiKiVeZN+QZyZkd/V9hyE2zr2X7HyW0QD2IuDSh+1Nnp4cycQtC8ejsqi9QWHcRA1+hgExRyPeBQRi1WT1VX7NLbVP3Gk1EdM/MT0GwVARyghvL2nIxANnPNWRE+OEaQp40DvXMIQXbY3oEc5QAeVhKZh7p7aM/wfFtDaB9hJVazWtv5zz/TJXPTGXMmU/HxaZSVbgYI7slpsrlVuaD0Mc+95in9rP9cX3NP4YW3/u4+9/P6F3fSpnWYyYQK6BEBcRAgPpHIofXa4P1YRqVlz20G6QFkntfFlwWppC6g1MZVtB2GqHPt+Td1l+rfE5yNtcy0NXS6Vxfv+cFKQ==",
+			wantPerfectMatch:      false,
+			wantHostsWithSameKey:  nil,
+			wantOldKey:            nil,
+			wantRelevantLineStart: 92, wantRelevantLineEnd: 92,
+		},
+		{
 			name:                  "new server (different algo)",
 			knownHosts:            "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n", // with new line
 			rawHostname:           "github.com",
@@ -334,13 +345,137 @@ func Test_spareSpace(t *testing.T) {
 
 func Test_updateKnownHosts(t *testing.T) {
 	testcases := []struct {
-		name string
-	}{}
+		name                               string
+		initialContent                     string
+		rawHostname                        string
+		key                                string
+		oldKey                             *string
+		hostsWithSameKey                   []string
+		relevantLineStart, relevantLineEnd int64
+		wantContent                        string
+	}{
+		{
+			name:              "new host empty file",
+			initialContent:    "",
+			rawHostname:       "github.com",
+			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKGJvkCkPoissrebkHB17tYjPunEULNKP8fNN6fTQ8M",
+			oldKey:            nil,
+			hostsWithSameKey:  nil,
+			relevantLineStart: 0, relevantLineEnd: 0,
+			wantContent: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKGJvkCkPoissrebkHB17tYjPunEULNKP8fNN6fTQ8M\n",
+		},
+		{
+			name:              "new host non-empty file",
+			initialContent:    "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+			rawHostname:       "candinya.com",
+			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd",
+			oldKey:            nil,
+			hostsWithSameKey:  nil,
+			relevantLineStart: 92, relevantLineEnd: 92,
+			wantContent: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\ncandinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd\n",
+		},
+		{
+			name:              "new host non-empty file (without newline)",
+			initialContent:    "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+			rawHostname:       "candinya.com",
+			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd",
+			oldKey:            nil,
+			hostsWithSameKey:  nil,
+			relevantLineStart: 92, relevantLineEnd: 92,
+			wantContent: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\ncandinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd\n",
+		},
+		{
+			name:              "new host same key",
+			initialContent:    "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+			rawHostname:       "candinya.com",
+			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+			oldKey:            nil,
+			hostsWithSameKey:  []string{"github.com"},
+			relevantLineStart: 0, relevantLineEnd: 92,
+			wantContent: "github.com,candinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+		},
+		{
+			name:              "new host (custom port) same key (without newline)",
+			initialContent:    "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+			rawHostname:       "[candinya.com]:2233",
+			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+			oldKey:            nil,
+			hostsWithSameKey:  []string{"github.com"},
+			relevantLineStart: 0, relevantLineEnd: 92,
+			wantContent: "github.com,[candinya.com]:2233 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+		},
+		{
+			name:              "new host (multiple) same key",
+			initialContent:    "github.com,[example.com]:2233,[127.0.0.1]:2233 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+			rawHostname:       "candinya.com",
+			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+			oldKey:            nil,
+			hostsWithSameKey:  []string{"github.com", "[example.com]:2233", "[127.0.0.1]:2233"},
+			relevantLineStart: 0, relevantLineEnd: 128,
+			wantContent: "github.com,[example.com]:2233,[127.0.0.1]:2233,candinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+		},
+		{
+			name:              "old host new key",
+			initialContent:    "candinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
+			rawHostname:       "candinya.com",
+			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKGJvkCkPoissrebkHB17tYjPunEULNKP8fNN6fTQ8M",
+			oldKey:            p("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"),
+			hostsWithSameKey:  nil,
+			relevantLineStart: 0, relevantLineEnd: 94,
+			wantContent: "candinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKGJvkCkPoissrebkHB17tYjPunEULNKP8fNN6fTQ8M\n",
+		},
+	}
 
 	for _, testcase := range testcases {
 		testcase := testcase
 		t.Run(testcase.name, func(t *testing.T) {
 			t.Parallel()
+
+			// Prepare
+			f, err := os.CreateTemp("", "pipessh-test-updateKnownHosts.*.txt")
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer os.Remove(f.Name()) // clean up
+
+			if _, err = f.WriteString(testcase.initialContent); err != nil {
+				t.Fatalf("failed to write content: %v", err)
+			}
+
+			key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(testcase.key))
+			if err != nil {
+				t.Fatalf("failed to parse public key: %v", err)
+			}
+
+			var oldKey *ssh.PublicKey = nil
+			if testcase.oldKey != nil {
+				oldKeyData, _, _, _, err := ssh.ParseAuthorizedKey([]byte(*testcase.oldKey))
+				if err != nil {
+					t.Fatalf("failed to parse public key: %v", err)
+				}
+				oldKey = &oldKeyData
+			}
+
+			// Test
+			if err = updateKnownHosts(f, testcase.rawHostname, key, oldKey, testcase.hostsWithSameKey, testcase.relevantLineStart, testcase.relevantLineEnd); err != nil {
+				t.Fatalf("failed to updateKnownHosts: %v", err)
+			}
+
+			// Validate
+			buf := make([]byte, DefaultBufferSize)
+
+			readBytes, err := f.ReadAt(buf, 0)
+			if err != nil && !errors.Is(err, io.EOF) {
+				t.Fatalf("failed to read content: %v", err)
+			}
+
+			if readBytes != len(testcase.wantContent) {
+				t.Errorf("Unexpected file size: expected %d, got %d", len(testcase.wantContent), readBytes)
+			}
+
+			if !bytes.Equal(buf[:readBytes], []byte(testcase.wantContent)) {
+				t.Errorf("Unexpected content: expected %q, got %q", testcase.wantContent, string(buf[:readBytes]))
+			}
 
 		})
 	}

@@ -166,19 +166,24 @@ func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key s
 }
 
 func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKey, oldKey *ssh.PublicKey, hostsWithSameKey []string, relevantLineStart, relevantLineEnd int64) error {
-	bytesToWrite := []byte(fmt.Sprintf("%s %s\n", strings.Join(append(hostsWithSameKey, hostname), ","), key.Marshal()))
+	bytesToWrite := []byte(fmt.Sprintf("%s %s", strings.Join(append(hostsWithSameKey, hostname), ","), ssh.MarshalAuthorizedKey(key))) // ssh.MarshalAuthorizedKey will include \n, so no need to add manually
 	if oldKey == nil && hostsWithSameKey == nil {
 		// Brand-new host, just append to end of file
-		if _, err := knownHostsFile.Seek(-1, io.SeekEnd); err != nil {
-			return fmt.Errorf("failed to seek known_hosts file: %w", err)
-		}
-		finalByte := make([]byte, 1)
-		if _, err := knownHostsFile.Read(finalByte); err != nil {
-			return fmt.Errorf("failed to read final byte of known_hosts file: %w", err)
-		}
-		if finalByte[0] != '\n' {
-			// No line separator at the end of file, should add line separator before our content or file would be corrupted
-			bytesToWrite = append([]byte{'\n'}, bytesToWrite...)
+		if stat, err := knownHostsFile.Stat(); err != nil {
+			return fmt.Errorf("failed to stat known_hosts file: %w", err)
+		} else if stat.Size() > 0 {
+			// Check if last byte is newline - we don't want to corrupt this file
+			if _, err := knownHostsFile.Seek(-1, io.SeekEnd); err != nil {
+				return fmt.Errorf("failed to seek known_hosts file: %w", err)
+			}
+			finalByte := make([]byte, 1)
+			if _, err := knownHostsFile.Read(finalByte); err != nil {
+				return fmt.Errorf("failed to read final byte of known_hosts file: %w", err)
+			}
+			if finalByte[0] != '\n' {
+				// No line separator at the end of file, should add line separator before our content or file would be corrupted
+				bytesToWrite = append([]byte{'\n'}, bytesToWrite...)
+			}
 		}
 		if _, err := knownHostsFile.Write(bytesToWrite); err != nil {
 			return fmt.Errorf("failed to append to known_hosts file: %w", err)
@@ -190,7 +195,7 @@ func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKe
 			return fmt.Errorf("failed to seek known_hosts file: %w", err)
 		}
 
-		// Calculate length difference
+		// Spare space
 		if err := spareSpace(knownHostsFile, relevantLineStart, relevantLineEnd, int64(len(bytesToWrite))); err != nil {
 			return fmt.Errorf("failed to space space from known_hosts file: %w", err)
 		}
