@@ -10,8 +10,17 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
+
+func getOSLineSeparator() string {
+	if runtime.GOOS == "windows" {
+		return "\r\n"
+	} else {
+		return "\n"
+	}
+}
 
 func hostKeyHandler(hostname string, remote net.Addr, key ssh.PublicKey) error {
 	rawHostname, friendlyHostname, err := extractHostname(hostname)
@@ -48,7 +57,7 @@ func hostKeyHandler(hostname string, remote net.Addr, key ssh.PublicKey) error {
 	// No matching result found, prepare event
 	evPayload := EventPayloadHostKey{
 		Host:      friendlyHostname,
-		PublicKey: string(ssh.MarshalAuthorizedKey(key)),
+		PublicKey: strings.TrimRight(string(ssh.MarshalAuthorizedKey(key)), "\n"),
 	}
 
 	if oldKey == nil {
@@ -56,7 +65,7 @@ func hostKeyHandler(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		evPayload.HostWithSameKey = hostsWithSameKey // Could be nil, but that's expected
 	} else {
 		// Server change its key
-		evPayload.OldPublicKey = p(string(ssh.MarshalAuthorizedKey(*oldKey)))
+		evPayload.OldPublicKey = p(strings.TrimRight(string(ssh.MarshalAuthorizedKey(*oldKey)), "\n"))
 	}
 
 	// Send event
@@ -122,7 +131,7 @@ func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key s
 			continue
 		}
 
-		relevantLineEnd += int64(len(line)) + 1 // +1 for separator
+		relevantLineEnd += int64(len(line) + len(getOSLineSeparator())) // + line separator
 
 		// Each line: host1:port1,host2,host3... algo pubkey
 		// for example:
@@ -166,7 +175,12 @@ func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key s
 }
 
 func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKey, oldKey *ssh.PublicKey, hostsWithSameKey []string, relevantLineStart, relevantLineEnd int64) error {
-	bytesToWrite := []byte(fmt.Sprintf("%s %s", strings.Join(append(hostsWithSameKey, hostname), ","), ssh.MarshalAuthorizedKey(key))) // ssh.MarshalAuthorizedKey will include \n, so no need to add manually
+	bytesToWrite := []byte(fmt.Sprintf(
+		"%s %s%s",
+		strings.Join(append(hostsWithSameKey, hostname), ","),
+		strings.TrimRight(string(ssh.MarshalAuthorizedKey(key)), "\n"),
+		getOSLineSeparator(),
+	)) // ssh.MarshalAuthorizedKey will include \n, so no need to add manually
 	if oldKey == nil && hostsWithSameKey == nil {
 		// Brand-new host, just append to end of file
 		if stat, err := knownHostsFile.Stat(); err != nil {
@@ -182,7 +196,7 @@ func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKe
 			}
 			if finalByte[0] != '\n' {
 				// No line separator at the end of file, should add line separator before our content or file would be corrupted
-				bytesToWrite = append([]byte{'\n'}, bytesToWrite...)
+				bytesToWrite = append([]byte(getOSLineSeparator()), bytesToWrite...)
 			}
 		}
 		if _, err := knownHostsFile.Write(bytesToWrite); err != nil {
