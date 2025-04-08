@@ -18,9 +18,10 @@ func sshConfig(server *Server, keyAuth ssh.AuthMethod) (*ssh.ClientConfig, error
 	}
 
 	return &ssh.ClientConfig{
-		User:            *server.Username,
-		Auth:            authMethods,
-		HostKeyCallback: hostKeyHandler,
+		User: *server.Username,
+		Auth: authMethods,
+		//HostKeyCallback: hostKeyHandler,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         DefaultTimeout,
 	}, nil
 }
