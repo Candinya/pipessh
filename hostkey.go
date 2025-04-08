@@ -10,17 +10,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
-
-func getOSLineSeparator() string {
-	if runtime.GOOS == "windows" {
-		return "\r\n"
-	} else {
-		return "\n"
-	}
-}
 
 func hostKeyHandler(hostname string, remote net.Addr, key ssh.PublicKey) error {
 	rawHostname, friendlyHostname, err := extractHostname(hostname)
@@ -131,7 +122,7 @@ func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key s
 			continue
 		}
 
-		relevantLineEnd += int64(len(line) + len(getOSLineSeparator())) // + line separator
+		relevantLineEnd += int64(len(line) + len(LineBreak)) // + line separator
 
 		// Each line: host1:port1,host2,host3... algo pubkey
 		// for example:
@@ -179,7 +170,7 @@ func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKe
 		"%s %s%s",
 		strings.Join(append(hostsWithSameKey, hostname), ","),
 		strings.TrimRight(string(ssh.MarshalAuthorizedKey(key)), "\n"),
-		getOSLineSeparator(),
+		LineBreak,
 	)) // ssh.MarshalAuthorizedKey will include \n, so no need to add manually
 	if oldKey == nil && hostsWithSameKey == nil {
 		// Brand-new host, just append to end of file
@@ -196,7 +187,7 @@ func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKe
 			}
 			if finalByte[0] != '\n' {
 				// No line separator at the end of file, should add line separator before our content or file would be corrupted
-				bytesToWrite = append([]byte(getOSLineSeparator()), bytesToWrite...)
+				bytesToWrite = append([]byte(LineBreak), bytesToWrite...)
 			}
 		}
 		if _, err := knownHostsFile.Write(bytesToWrite); err != nil {

@@ -13,7 +13,7 @@ import (
 )
 
 func replaceLineSeparator(content string) string {
-	return strings.ReplaceAll(content, "\n", getOSLineSeparator())
+	return strings.ReplaceAll(content, "\n", LineBreak)
 }
 
 func Test_extractHostname(t *testing.T) {
@@ -141,7 +141,7 @@ func Test_findServer(t *testing.T) {
 			wantPerfectMatch:      false,
 			wantHostsWithSameKey:  nil,
 			wantOldKey:            nil,
-			wantRelevantLineStart: int64(91 + len(getOSLineSeparator())), wantRelevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			wantRelevantLineStart: int64(91 + len(LineBreak)), wantRelevantLineEnd: int64(91 + len(LineBreak)),
 		},
 		{
 			name:                  "new server (completely different) (without newline)",
@@ -152,7 +152,7 @@ func Test_findServer(t *testing.T) {
 			wantPerfectMatch:      false,
 			wantHostsWithSameKey:  nil,
 			wantOldKey:            nil,
-			wantRelevantLineStart: int64(91 + len(getOSLineSeparator())), wantRelevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			wantRelevantLineStart: int64(91 + len(LineBreak)), wantRelevantLineEnd: int64(91 + len(LineBreak)),
 		},
 		{
 			name:                  "new server (different algo)",
@@ -163,7 +163,7 @@ func Test_findServer(t *testing.T) {
 			wantPerfectMatch:      false,
 			wantHostsWithSameKey:  nil,
 			wantOldKey:            nil,
-			wantRelevantLineStart: int64(91 + len(getOSLineSeparator())), wantRelevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			wantRelevantLineStart: int64(91 + len(LineBreak)), wantRelevantLineEnd: int64(91 + len(LineBreak)),
 		},
 		{
 			name:                  "same key different host",
@@ -174,7 +174,7 @@ func Test_findServer(t *testing.T) {
 			wantPerfectMatch:      false,
 			wantHostsWithSameKey:  []string{"github.com", "[example.com]:2233", "[127.0.0.1]:2233"},
 			wantOldKey:            nil,
-			wantRelevantLineStart: 0, wantRelevantLineEnd: int64(127 + len(getOSLineSeparator())),
+			wantRelevantLineStart: 0, wantRelevantLineEnd: int64(127 + len(LineBreak)),
 		},
 		{
 			name:                  "same host new key",
@@ -185,7 +185,7 @@ func Test_findServer(t *testing.T) {
 			wantPerfectMatch:      false,
 			wantHostsWithSameKey:  nil,
 			wantOldKey:            p("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"),
-			wantRelevantLineStart: 0, wantRelevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			wantRelevantLineStart: 0, wantRelevantLineEnd: int64(91 + len(LineBreak)),
 		},
 	}
 
@@ -376,7 +376,7 @@ func Test_updateKnownHosts(t *testing.T) {
 			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd",
 			oldKey:            nil,
 			hostsWithSameKey:  nil,
-			relevantLineStart: int64(91 + len(getOSLineSeparator())), relevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			relevantLineStart: int64(91 + len(LineBreak)), relevantLineEnd: int64(91 + len(LineBreak)),
 			wantContent: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\ncandinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd\n",
 		},
 		{
@@ -386,7 +386,7 @@ func Test_updateKnownHosts(t *testing.T) {
 			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd",
 			oldKey:            nil,
 			hostsWithSameKey:  nil,
-			relevantLineStart: int64(91 + len(getOSLineSeparator())), relevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			relevantLineStart: int64(91 + len(LineBreak)), relevantLineEnd: int64(91 + len(LineBreak)),
 			wantContent: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\ncandinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEvllz8Y+okFQ2M/64Wf4PSxJbV31WHA7/CXFPNhTaMd\n",
 		},
 		{
@@ -396,7 +396,7 @@ func Test_updateKnownHosts(t *testing.T) {
 			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
 			oldKey:            nil,
 			hostsWithSameKey:  []string{"github.com"},
-			relevantLineStart: 0, relevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			relevantLineStart: 0, relevantLineEnd: int64(91 + len(LineBreak)),
 			wantContent: "github.com,candinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
 		},
 		{
@@ -406,7 +406,7 @@ func Test_updateKnownHosts(t *testing.T) {
 			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
 			oldKey:            nil,
 			hostsWithSameKey:  []string{"github.com"},
-			relevantLineStart: 0, relevantLineEnd: int64(91 + len(getOSLineSeparator())),
+			relevantLineStart: 0, relevantLineEnd: int64(91 + len(LineBreak)),
 			wantContent: "github.com,[candinya.com]:2233 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
 		},
 		{
@@ -416,7 +416,7 @@ func Test_updateKnownHosts(t *testing.T) {
 			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
 			oldKey:            nil,
 			hostsWithSameKey:  []string{"github.com", "[example.com]:2233", "[127.0.0.1]:2233"},
-			relevantLineStart: 0, relevantLineEnd: int64(127 + len(getOSLineSeparator())),
+			relevantLineStart: 0, relevantLineEnd: int64(127 + len(LineBreak)),
 			wantContent: "github.com,[example.com]:2233,[127.0.0.1]:2233,candinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n",
 		},
 		{
@@ -426,7 +426,7 @@ func Test_updateKnownHosts(t *testing.T) {
 			key:               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKGJvkCkPoissrebkHB17tYjPunEULNKP8fNN6fTQ8M",
 			oldKey:            p("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"),
 			hostsWithSameKey:  nil,
-			relevantLineStart: 0, relevantLineEnd: int64(93 + len(getOSLineSeparator())),
+			relevantLineStart: 0, relevantLineEnd: int64(93 + len(LineBreak)),
 			wantContent: "candinya.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKGJvkCkPoissrebkHB17tYjPunEULNKP8fNN6fTQ8M\n",
 		},
 	}
