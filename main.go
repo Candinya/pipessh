@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/terminal"
 	"os"
 )
 
@@ -52,12 +51,13 @@ func main() {
 	}
 
 	// Prepare stdin
-	fileDescriptor := int(os.Stdin.Fd())
-	originalState, err := terminal.MakeRaw(fileDescriptor)
-	if err != nil {
-		LogPanic(fmt.Errorf("failed to make raw terminal: %w", err))
-	}
-	defer terminal.Restore(fileDescriptor, originalState)
+	// panic: failed to make raw terminal: The handle is invalid.
+	//fileDescriptor := int(os.Stdin.Fd())
+	//originalState, err := terminal.MakeRaw(fileDescriptor)
+	//if err != nil {
+	//	LogPanic(fmt.Errorf("failed to make raw terminal: %w", err))
+	//}
+	//defer terminal.Restore(fileDescriptor, originalState)
 
 	// Dial
 	targetClient, jumpClient, err := sshDial(targetServer, targetConfig, jumpServer, jumpConfig)
