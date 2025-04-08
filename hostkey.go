@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"golang.org/x/crypto/ssh"
 	"io"
@@ -189,16 +190,8 @@ func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKe
 			return fmt.Errorf("failed to seek known_hosts file: %w", err)
 		}
 
-		// Get file current size
-		var fileSize int64
-		if stat, err := knownHostsFile.Stat(); err != nil {
-			return fmt.Errorf("failed to stat known_hosts file: %w", err)
-		} else {
-			fileSize = stat.Size()
-		}
-
 		// Calculate length difference
-		if err := spareSpace(knownHostsFile, fileSize, relevantLineStart, relevantLineEnd, int64(len(bytesToWrite))); err != nil {
+		if err := spareSpace(knownHostsFile, relevantLineStart, relevantLineEnd, int64(len(bytesToWrite))); err != nil {
 			return fmt.Errorf("failed to space space from known_hosts file: %w", err)
 		}
 
@@ -211,11 +204,23 @@ func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKe
 	return nil
 }
 
-func spareSpace(target *os.File, totalSize int64, startAt int64, endAt int64, requiredSpace int64) error {
-	lengthDiff := requiredSpace - (endAt - startAt)
+func spareSpace(targetFile *os.File, keepBefore int64, keepAfter int64, requiredSpace int64) error {
+	lengthDiff := requiredSpace - (keepAfter - keepBefore)
 	if lengthDiff == 0 {
 		// No need to process
 		return nil
+	}
+
+	// Get file current size
+	var fileSize int64
+	if stat, err := targetFile.Stat(); err != nil {
+		return fmt.Errorf("failed to stat known_hosts file: %w", err)
+	} else {
+		fileSize = stat.Size()
+		if fileSize == 0 {
+			// Nothing to read
+			return nil
+		}
 	}
 
 	// else: we have a job now
@@ -223,19 +228,19 @@ func spareSpace(target *os.File, totalSize int64, startAt int64, endAt int64, re
 
 	if lengthDiff > 0 {
 		// Longer, move from back to front
-		for end := totalSize + lengthDiff; end > endAt; {
+		for end := fileSize; end > keepAfter; {
 			// Read
-			start := end - DefaultBufferSize
-			if start < endAt+lengthDiff {
-				start = endAt + lengthDiff
+			start := end - int64(len(buf))
+			if start < keepAfter {
+				start = keepAfter
 			}
-			readCount, err := target.ReadAt(buf, start)
-			if err != nil {
+			readCount, err := targetFile.ReadAt(buf, start)
+			if err != nil && !errors.Is(err, io.EOF) {
 				return fmt.Errorf("failed to read from file: %w", err)
 			}
 
 			// Write
-			writeCount, err := target.WriteAt(buf[:readCount], start+lengthDiff)
+			writeCount, err := targetFile.WriteAt(buf[:readCount], start+lengthDiff)
 			if err != nil {
 				return fmt.Errorf("failed to write to file: %w", err)
 			}
@@ -249,19 +254,15 @@ func spareSpace(target *os.File, totalSize int64, startAt int64, endAt int64, re
 		}
 	} else {
 		// Shorter, move from front to back
-		for start := startAt; start < totalSize+lengthDiff; {
+		for start := keepAfter; start < fileSize; {
 			// Read
-			readCount, err := target.ReadAt(buf, start)
-			if err != nil {
+			readCount, err := targetFile.ReadAt(buf, start)
+			if err != nil && !errors.Is(err, io.EOF) {
 				return fmt.Errorf("failed to read from file: %w", err)
 			}
 
-			if start+int64(readCount) > endAt+lengthDiff {
-				readCount = int(endAt + lengthDiff - start)
-			}
-
 			// Write
-			writeCount, err := target.WriteAt(buf[:readCount], start+lengthDiff)
+			writeCount, err := targetFile.WriteAt(buf[:readCount], start+lengthDiff)
 			if err != nil {
 				return fmt.Errorf("failed to write to file: %w", err)
 			}
@@ -275,7 +276,7 @@ func spareSpace(target *os.File, totalSize int64, startAt int64, endAt int64, re
 		}
 
 		// Truncate file after move to remove unexpected bytes
-		if err := target.Truncate(totalSize + lengthDiff); err != nil {
+		if err := targetFile.Truncate(fileSize + lengthDiff); err != nil {
 			return fmt.Errorf("failed to truncate file: %w", err)
 		}
 	}

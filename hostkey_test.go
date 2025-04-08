@@ -2,7 +2,11 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"golang.org/x/crypto/ssh"
+	"io"
+	"log"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -216,14 +220,114 @@ func Test_findServer(t *testing.T) {
 
 func Test_spareSpace(t *testing.T) {
 	testcases := []struct {
-		name string
-	}{}
+		name                  string
+		initialContent        string
+		keepBefore, keepAfter int64
+		requiredSpace         int64
+		wantContent           string
+	}{
+		{
+			name:           "empty",
+			initialContent: "",
+			keepBefore:     0,
+			keepAfter:      0,
+			requiredSpace:  0,
+			wantContent:    "",
+		},
+		{
+			name:           "longer content 1",
+			initialContent: "A123456789B123456789C123456789",
+			keepBefore:     5,
+			keepAfter:      10,
+			requiredSpace:  10,
+			wantContent:    "A123456789B1234B123456789C123456789",
+		},
+		{
+			name:           "longer content 2",
+			initialContent: "A123456789B123456789C123456789",
+			keepBefore:     5,
+			keepAfter:      15,
+			requiredSpace:  30,
+			wantContent:    "A123456789B123456789C123456789\x00\x00\x00\x00\x0056789C123456789",
+		},
+		{
+			name:           "longer content 3",
+			initialContent: "A123456789B123456789C123456789",
+			keepBefore:     0,
+			keepAfter:      15,
+			requiredSpace:  30,
+			wantContent:    "A123456789B123456789C12345678956789C123456789",
+		},
+		{
+			name:           "shorter content 1",
+			initialContent: "A123456789B123456789C123456789",
+			keepBefore:     5,
+			keepAfter:      10,
+			requiredSpace:  2,
+			wantContent:    "A123456B123456789C123456789",
+		},
+		{
+			name:           "shorter content 2",
+			initialContent: "A123456789B123456789C123456789",
+			keepBefore:     5,
+			keepAfter:      30,
+			requiredSpace:  2,
+			wantContent:    "A123456",
+		},
+		{
+			name:           "shorter content 3",
+			initialContent: "A123456789B123456789C123456789",
+			keepBefore:     5,
+			keepAfter:      30,
+			requiredSpace:  0,
+			wantContent:    "A1234",
+		},
+		{
+			name:           "same length",
+			initialContent: "A123456789B123456789C123456789",
+			keepBefore:     5,
+			keepAfter:      15,
+			requiredSpace:  10,
+			wantContent:    "A123456789B123456789C123456789",
+		},
+	}
 
 	for _, testcase := range testcases {
 		testcase := testcase
 		t.Run(testcase.name, func(t *testing.T) {
 			t.Parallel()
 
+			// Prepare
+			f, err := os.CreateTemp("", "pipessh-test-sparespace.*.txt")
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer os.Remove(f.Name()) // clean up
+
+			if _, err = f.WriteString(testcase.initialContent); err != nil {
+				t.Fatalf("failed to write content: %v", err)
+			}
+
+			// Test
+			if err = spareSpace(f, testcase.keepBefore, testcase.keepAfter, testcase.requiredSpace); err != nil {
+				t.Fatalf("failed to spareSpace: %v", err)
+			}
+
+			// Validate
+			buf := make([]byte, DefaultBufferSize)
+
+			readBytes, err := f.ReadAt(buf, 0)
+			if err != nil && !errors.Is(err, io.EOF) {
+				t.Fatalf("failed to read content: %v", err)
+			}
+
+			if readBytes != len(testcase.wantContent) {
+				t.Errorf("Unexpected file size: expected %d, got %d", len(testcase.wantContent), readBytes)
+			}
+
+			if !bytes.Equal(buf[:readBytes], []byte(testcase.wantContent)) {
+				t.Errorf("Unexpected content: expected %q, got %q", testcase.wantContent, string(buf[:readBytes]))
+			}
 		})
 	}
 }
