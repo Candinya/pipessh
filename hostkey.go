@@ -9,86 +9,81 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
-func hostKeyHandler(hostname string, remote net.Addr, key ssh.PublicKey) error {
-	rawHostname, friendlyHostname, err := extractHostname(hostname)
-	if err != nil {
-		return fmt.Errorf("failed to extract hostname %s: %w", hostname, err)
-	}
+func prepareHostKeyHandler(knownHostsFilePath string) func(string, net.Addr, ssh.PublicKey) error {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		rawHostname, friendlyHostname, err := extractHostname(hostname)
+		if err != nil {
+			return fmt.Errorf("failed to extract hostname %s: %w", hostname, err)
+		}
 
-	var rawAddr string
-	if remote.(*net.TCPAddr).Port == DefaultSSHPort {
-		rawAddr = remote.(*net.TCPAddr).IP.String()
-	} else {
-		rawAddr = fmt.Sprintf("[%s]:%d", remote.(*net.TCPAddr).IP.String(), remote.(*net.TCPAddr).Port)
-	}
+		var rawAddr string
+		if remote.(*net.TCPAddr).Port == DefaultSSHPort {
+			rawAddr = remote.(*net.TCPAddr).IP.String()
+		} else {
+			rawAddr = fmt.Sprintf("[%s]:%d", remote.(*net.TCPAddr).IP.String(), remote.(*net.TCPAddr).Port)
+		}
 
-	// Query known_hosts file
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get user home dir: %w", err)
-	}
-	knownHostsFilePath := filepath.Join(homedir, ".ssh", "known_hosts")
+		// Query known_hosts file
+		knownHostsFile, err := os.OpenFile(knownHostsFilePath, os.O_RDWR|os.O_CREATE, 0600)
+		if err != nil {
+			return fmt.Errorf("failed to open known_hosts file: %w", err)
+		}
 
-	knownHostsFile, err := os.OpenFile(knownHostsFilePath, os.O_RDWR|os.O_CREATE, 0600)
-	if err != nil {
-		return fmt.Errorf("failed to open known_hosts file: %w", err)
-	}
+		defer knownHostsFile.Close()
 
-	defer knownHostsFile.Close()
+		isPerfectMatch, hostsWithSameKey, oldKey, relevantLineStart, relevantLineEnd := findServer(knownHostsFile, rawHostname, rawAddr, key)
+		if isPerfectMatch {
+			return nil
+		}
 
-	isPerfectMatch, hostsWithSameKey, oldKey, relevantLineStart, relevantLineEnd := findServer(knownHostsFile, rawHostname, rawAddr, key)
-	if isPerfectMatch {
+		// No matching result found, prepare event
+		evPayload := EventPayloadHostKey{
+			Host:        friendlyHostname,
+			Fingerprint: ssh.FingerprintSHA256(key),
+		}
+
+		if oldKey == nil {
+			// New host
+			evPayload.HostWithSameKey = hostsWithSameKey // Could be nil, but that's expected
+		} else {
+			// Server change its key
+			evPayload.OldFingerprint = p(ssh.FingerprintSHA256(oldKey))
+		}
+
+		// Send event
+		keyEvBytes, err := buildEvent(EventNameHostKey, &evPayload)
+		if err != nil {
+			return fmt.Errorf("failed to build key event: %w", err)
+		}
+		if _, err = os.Stdout.Write(keyEvBytes); err != nil {
+			return fmt.Errorf("failed to write key event: %w", err)
+		}
+
+		// Waiting for reply
+		resBuf := make([]byte, DefaultBufferSize)
+		n, err := os.Stdin.Read(resBuf)
+		if err != nil {
+			return fmt.Errorf("failed to read from stdin: %w", err)
+		}
+		if n == 0 {
+			return fmt.Errorf("nothing read from stdin")
+		}
+		if !arrayContains([]byte("yY1\r\n"), resBuf[0]) {
+			// User rejected
+			return fmt.Errorf("user rejected")
+		}
+
+		// else: user approved, update file before proceed
+		if err = updateKnownHosts(knownHostsFile, rawHostname, key, oldKey, hostsWithSameKey, relevantLineStart, relevantLineEnd); err != nil {
+			// Update failed, but continue processing
+			LogError(fmt.Errorf("failed to update known_hosts file: %w", err))
+		}
+
 		return nil
 	}
-
-	// No matching result found, prepare event
-	evPayload := EventPayloadHostKey{
-		Host:      friendlyHostname,
-		PublicKey: strings.TrimRight(string(ssh.MarshalAuthorizedKey(key)), "\n"),
-	}
-
-	if oldKey == nil {
-		// New host
-		evPayload.HostWithSameKey = hostsWithSameKey // Could be nil, but that's expected
-	} else {
-		// Server change its key
-		evPayload.OldPublicKey = p(strings.TrimRight(string(ssh.MarshalAuthorizedKey(*oldKey)), "\n"))
-	}
-
-	// Send event
-	keyEvBytes, err := buildEvent(EventNameHostKey, &evPayload)
-	if err != nil {
-		return fmt.Errorf("failed to build key event: %w", err)
-	}
-	if _, err = os.Stdout.Write(keyEvBytes); err != nil {
-		return fmt.Errorf("failed to write key event: %w", err)
-	}
-
-	// Waiting for reply
-	resBuf := make([]byte, DefaultBufferSize)
-	n, err := os.Stdin.Read(resBuf)
-	if err != nil {
-		return fmt.Errorf("failed to read from stdin: %w", err)
-	}
-	if n == 0 {
-		return fmt.Errorf("nothing read from stdin")
-	}
-	if !arrayContains([]byte("yY1\r\n"), resBuf[0]) {
-		// User rejected
-		return fmt.Errorf("user rejected")
-	}
-
-	// else: user approved, update file before proceed
-	if err = updateKnownHosts(knownHostsFile, rawHostname, key, oldKey, hostsWithSameKey, relevantLineStart, relevantLineEnd); err != nil {
-		// Update failed, but continue processing
-		LogError(fmt.Errorf("failed to update known_hosts file: %w", err))
-	}
-
-	return nil
 }
 
 func extractHostname(hostname string) (rawHostname, friendlyHostname string, err error) {
@@ -107,7 +102,7 @@ func extractHostname(hostname string) (rawHostname, friendlyHostname string, err
 	return
 }
 
-func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key ssh.PublicKey) (bool, []string, *ssh.PublicKey, int64, int64) {
+func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key ssh.PublicKey) (bool, []string, ssh.PublicKey, int64, int64) {
 	var (
 		relevantLineStart int64 = 0
 		relevantLineEnd   int64 = 0
@@ -153,7 +148,7 @@ func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key s
 			return true, nil, nil, 0, 0
 		} else if isHostMatch { // !isKeyMatch
 			// Server change its key
-			return false, nil, &keyInLine, relevantLineStart, relevantLineEnd
+			return false, nil, keyInLine, relevantLineStart, relevantLineEnd
 		} else { // isKeyMatch && !isHostMatch
 			// Access the same server using different host
 			return false, hostsInLine, nil, relevantLineStart, relevantLineEnd
@@ -165,7 +160,7 @@ func findServer(knownHostsFile io.Reader, hostname string, rawAddr string, key s
 	return false, nil, nil, relevantLineStart, relevantLineEnd // Use relevant line end to mark file end position
 }
 
-func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKey, oldKey *ssh.PublicKey, hostsWithSameKey []string, relevantLineStart, relevantLineEnd int64) error {
+func updateKnownHosts(knownHostsFile *os.File, hostname string, key ssh.PublicKey, oldKey ssh.PublicKey, hostsWithSameKey []string, relevantLineStart, relevantLineEnd int64) error {
 	bytesToWrite := []byte(fmt.Sprintf(
 		"%s %s%s",
 		strings.Join(append(hostsWithSameKey, hostname), ","),

@@ -5,7 +5,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func sshConfig(server *Server, keyAuth ssh.AuthMethod) (*ssh.ClientConfig, error) {
+func sshConfig(server *Server, keyAuth ssh.AuthMethod, knownHostsFilePath string) (*ssh.ClientConfig, error) {
 	var authMethods []ssh.AuthMethod
 	if server.Password != nil {
 		authMethods = append(authMethods, ssh.Password(*server.Password))
@@ -18,10 +18,9 @@ func sshConfig(server *Server, keyAuth ssh.AuthMethod) (*ssh.ClientConfig, error
 	}
 
 	return &ssh.ClientConfig{
-		User: *server.Username,
-		Auth: authMethods,
-		//HostKeyCallback: hostKeyHandler,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		User:            *server.Username,
+		Auth:            authMethods,
+		HostKeyCallback: prepareHostKeyHandler(knownHostsFilePath),
 		Timeout:         DefaultTimeout,
 	}, nil
 }

@@ -18,9 +18,9 @@ const (
 
 type EventPayloadHostKey struct {
 	Host            string   `json:"h"`
+	Fingerprint     string   `json:"fp"`
 	HostWithSameKey []string `json:"s,omitempty"`
-	OldPublicKey    *string  `json:"o,omitempty"`
-	PublicKey       string   `json:"k"`
+	OldFingerprint  *string  `json:"o,omitempty"`
 }
 
 func buildEvent(name string, payload any) ([]byte, error) {

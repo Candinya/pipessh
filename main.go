@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// Prepare basic info
-	targetServer, jumpServer, privateKeys, err := prepare()
+	targetServer, jumpServer, privateKeys, knownHostsFilePath, err := prepare()
 	if err != nil {
 		LogPanic(fmt.Errorf("failed to prepare: %w", err))
 	}
@@ -37,14 +37,14 @@ func main() {
 	}
 
 	// Configure SSH client
-	targetConfig, err := sshConfig(targetServer, keyAuth)
+	targetConfig, err := sshConfig(targetServer, keyAuth, *knownHostsFilePath)
 	if err != nil {
 		LogPanic(fmt.Errorf("failed to configure target server: %w", err))
 	}
 
 	var jumpConfig *ssh.ClientConfig = nil
 	if jumpServer != nil {
-		jumpConfig, err = sshConfig(jumpServer, keyAuth)
+		jumpConfig, err = sshConfig(jumpServer, keyAuth, *knownHostsFilePath)
 		if err != nil {
 			LogPanic(fmt.Errorf("failed to configure jump server: %w", err))
 		}

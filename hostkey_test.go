@@ -215,11 +215,11 @@ func Test_findServer(t *testing.T) {
 					t.Fatalf("failed to parse public key: %v", err)
 				}
 
-				if !bytes.Equal((*oldk).Marshal(), oldkey.Marshal()) {
-					t.Errorf("Unexpected OldKey: expected %q, got %q", oldkey.Marshal(), (*oldk).Marshal())
+				if !bytes.Equal(oldk.Marshal(), oldkey.Marshal()) {
+					t.Errorf("Unexpected OldKey: expected %q, got %q", oldkey.Marshal(), oldk.Marshal())
 				}
 			} else if oldk != nil {
-				t.Errorf("Unexpected OldKey: got %q", *oldk)
+				t.Errorf("Unexpected OldKey: got %q", oldk)
 			}
 
 			if rls != testcase.wantRelevantLineStart {
@@ -460,13 +460,12 @@ func Test_updateKnownHosts(t *testing.T) {
 				t.Fatalf("failed to parse public key: %v", err)
 			}
 
-			var oldKey *ssh.PublicKey = nil
+			var oldKey ssh.PublicKey = nil
 			if testcase.oldKey != nil {
-				oldKeyData, _, _, _, err := ssh.ParseAuthorizedKey([]byte(*testcase.oldKey))
+				oldKey, _, _, _, err = ssh.ParseAuthorizedKey([]byte(*testcase.oldKey))
 				if err != nil {
 					t.Fatalf("failed to parse public key: %v", err)
 				}
-				oldKey = &oldKeyData
 			}
 
 			// Test
