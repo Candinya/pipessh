@@ -112,14 +112,5 @@ func prepare() (targetServer *Server, jumpServer *Server, privateKeys []string, 
 		}
 	}
 
-	if knownHostsFilePath == nil {
-		// Default
-		homedir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("failed to get user home dir: %w", err)
-		}
-		knownHostsFilePath = p(filepath.Join(homedir, ".ssh", "known_hosts"))
-	}
-
 	return targetServer, jumpServer, privateKeys, knownHostsFilePath, nil
 }

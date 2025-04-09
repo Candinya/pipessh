@@ -37,14 +37,14 @@ func main() {
 	}
 
 	// Configure SSH client
-	targetConfig, err := sshConfig(targetServer, keyAuth, *knownHostsFilePath)
+	targetConfig, err := sshConfig(targetServer, keyAuth, knownHostsFilePath)
 	if err != nil {
 		LogPanic(fmt.Errorf("failed to configure target server: %w", err))
 	}
 
 	var jumpConfig *ssh.ClientConfig = nil
 	if jumpServer != nil {
-		jumpConfig, err = sshConfig(jumpServer, keyAuth, *knownHostsFilePath)
+		jumpConfig, err = sshConfig(jumpServer, keyAuth, knownHostsFilePath)
 		if err != nil {
 			LogPanic(fmt.Errorf("failed to configure jump server: %w", err))
 		}
