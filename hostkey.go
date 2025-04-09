@@ -238,15 +238,26 @@ func spareSpace(targetFile *os.File, keepBefore int64, keepAfter int64, required
 
 	if lengthDiff > 0 {
 		// Longer, move from back to front
-		for end := fileSize; end > keepAfter; {
-			// Read
-			start := end - int64(len(buf))
+		lastStart := fileSize
+		start := fileSize - int64(len(buf))
+		reachTop := false
+		for !reachTop {
 			if start < keepAfter {
 				start = keepAfter
+				reachTop = true
 			}
+
+			// Read
 			readCount, err := targetFile.ReadAt(buf, start)
 			if err != nil && !errors.Is(err, io.EOF) {
 				return fmt.Errorf("failed to read from file: %w", err)
+			}
+
+			if reachTop {
+				readCount = int(lastStart - start) // fix read count
+				if readCount <= 0 {
+					break
+				}
 			}
 
 			// Write
@@ -259,8 +270,9 @@ func spareSpace(targetFile *os.File, keepBefore int64, keepAfter int64, required
 				return fmt.Errorf("read write mismatch, data corrupted")
 			}
 
-			// Update end
-			end -= int64(readCount)
+			// Update pointer
+			lastStart = start
+			start -= int64(readCount)
 		}
 	} else {
 		// Shorter, move from front to back

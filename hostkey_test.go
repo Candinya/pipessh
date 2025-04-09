@@ -256,7 +256,7 @@ func Test_spareSpace(t *testing.T) {
 			keepBefore:     5,
 			keepAfter:      10,
 			requiredSpace:  10,
-			wantContent:    "A123456789B1234B123456789C123456789",
+			wantContent:    "A1234          B123456789C123456789",
 		},
 		{
 			name:           "longer content 2",
@@ -264,7 +264,7 @@ func Test_spareSpace(t *testing.T) {
 			keepBefore:     5,
 			keepAfter:      15,
 			requiredSpace:  30,
-			wantContent:    "A123456789B123456789C123456789\x00\x00\x00\x00\x0056789C123456789",
+			wantContent:    "A1234                              56789C123456789",
 		},
 		{
 			name:           "longer content 3",
@@ -272,7 +272,7 @@ func Test_spareSpace(t *testing.T) {
 			keepBefore:     0,
 			keepAfter:      15,
 			requiredSpace:  30,
-			wantContent:    "A123456789B123456789C12345678956789C123456789",
+			wantContent:    "                              56789C123456789",
 		},
 		{
 			name:           "shorter content 1",
@@ -280,7 +280,7 @@ func Test_spareSpace(t *testing.T) {
 			keepBefore:     5,
 			keepAfter:      10,
 			requiredSpace:  2,
-			wantContent:    "A123456B123456789C123456789",
+			wantContent:    "A1234  B123456789C123456789",
 		},
 		{
 			name:           "shorter content 2",
@@ -288,7 +288,7 @@ func Test_spareSpace(t *testing.T) {
 			keepBefore:     5,
 			keepAfter:      30,
 			requiredSpace:  2,
-			wantContent:    "A123456",
+			wantContent:    "A1234  ",
 		},
 		{
 			name:           "shorter content 3",
@@ -304,7 +304,7 @@ func Test_spareSpace(t *testing.T) {
 			keepBefore:     5,
 			keepAfter:      15,
 			requiredSpace:  10,
-			wantContent:    "A123456789B123456789C123456789",
+			wantContent:    "A1234          56789C123456789",
 		},
 	}
 
@@ -341,8 +341,16 @@ func Test_spareSpace(t *testing.T) {
 				t.Errorf("Unexpected file size: expected %d, got %d", len(testcase.wantContent), readBytes)
 			}
 
-			if !bytes.Equal(buf[:readBytes], []byte(testcase.wantContent)) {
-				t.Errorf("Unexpected content: expected %q, got %q", testcase.wantContent, string(buf[:readBytes]))
+			if testcase.keepBefore > 0 {
+				if !bytes.Equal(buf[:testcase.keepBefore], []byte(testcase.wantContent[:testcase.keepBefore])) {
+					t.Errorf("Unexpected keepBefore content: expected %q, got %q", testcase.wantContent[:testcase.keepBefore], string(buf[:testcase.keepBefore]))
+				}
+			}
+
+			if testcase.keepBefore+testcase.requiredSpace < int64(readBytes) {
+				if !bytes.Equal(buf[testcase.keepBefore+testcase.requiredSpace:readBytes], []byte(testcase.wantContent[testcase.keepBefore+testcase.requiredSpace:])) {
+					t.Errorf("Unexpected keepAfter content: expected %q, got %q", testcase.wantContent[testcase.keepBefore+testcase.requiredSpace:], string(buf[testcase.keepBefore+testcase.requiredSpace:readBytes]))
+				}
 			}
 		})
 	}
