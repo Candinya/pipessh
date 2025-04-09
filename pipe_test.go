@@ -86,17 +86,6 @@ func Test_inPipe(t *testing.T) {
 		{
 			name: "Event entire 3",
 			commands: []string{
-				"this is \nsimple command\n\n",
-				"\x1B[8;120;32t",
-				"with \rmultiple lines\n\n",
-				"\x1B[8;32;120t",
-			},
-			wantOut:  "this is \nsimple command\n\nwith \rmultiple lines\n\n",
-			wantRows: 32, wantCols: 120,
-		},
-		{
-			name: "Event entire 4",
-			commands: []string{
 				"this is \n",
 				"simple command\n\n\x1B[8;120;32t",
 				"with \rmultiple lines\n\n",
@@ -105,7 +94,7 @@ func Test_inPipe(t *testing.T) {
 			wantRows: 120, wantCols: 32,
 		},
 		{
-			name: "Event entire 5",
+			name: "Event entire 4",
 			commands: []string{
 				"this is \nsimple command\n\n",
 				"\x1B[8;120;32twith \rmu",
@@ -115,7 +104,7 @@ func Test_inPipe(t *testing.T) {
 			wantRows: 120, wantCols: 32,
 		},
 		{
-			name: "Event entire 6",
+			name: "Event entire 5",
 			commands: []string{
 				"this is \nsim",
 				"ple command\n\n\x1B[8;120;32twith \rmu",
@@ -130,8 +119,8 @@ func Test_inPipe(t *testing.T) {
 				"\x1B[8;120",
 				";32t",
 			},
-			wantOut:  "",
-			wantRows: 120, wantCols: 32,
+			wantOut:  "\u001B[8;120;32t",
+			wantRows: 0, wantCols: 0,
 		},
 		{
 			name: "Event split 2",
@@ -140,8 +129,8 @@ func Test_inPipe(t *testing.T) {
 				"120",
 				";32t",
 			},
-			wantOut:  "",
-			wantRows: 120, wantCols: 32,
+			wantOut:  "\u001B[8;120;32t",
+			wantRows: 0, wantCols: 0,
 		},
 		{
 			name: "Event split 3",
@@ -150,8 +139,8 @@ func Test_inPipe(t *testing.T) {
 				";32",
 				"t",
 			},
-			wantOut:  "",
-			wantRows: 120, wantCols: 32,
+			wantOut:  "\u001B[8;120;32t",
+			wantRows: 0, wantCols: 0,
 		},
 		{
 			name: "Event split 4",
@@ -161,8 +150,8 @@ func Test_inPipe(t *testing.T) {
 				";32",
 				"t",
 			},
-			wantOut:  "",
-			wantRows: 120, wantCols: 32,
+			wantOut:  "\u001B[8;120;32t",
+			wantRows: 0, wantCols: 0,
 		},
 		{
 			name: "Event split 5",
@@ -176,81 +165,7 @@ func Test_inPipe(t *testing.T) {
 				"[8;120",
 				";32",
 			},
-			wantOut:  "\u001B[8;120;32",
-			wantRows: 121, wantCols: 33,
-		},
-		{
-			name: "Event split 6",
-			commands: []string{
-				"\x1B[8;",
-				"121",
-				"\x1B[9;",
-				"\x1B[8;",
-				"122",
-				";33",
-				"t\x1B[8;",
-				"124",
-				";35t\x1B",
-				"[8;126",
-				";37",
-			},
-			wantOut:  "\u001B[8;121\u001B[9;\u001B[8;126;37",
-			wantRows: 124, wantCols: 35,
-		},
-		{
-			name: "Event split 7",
-			commands: []string{
-				"\x1B[8;121\x1B[9;\x1B[8;",
-				"122;33t\x1B[8;124",
-				";35t\x1B",
-				"[8;126",
-				";37",
-			},
-			wantOut:  "\u001B[8;121\u001B[9;\u001B[8;126;37",
-			wantRows: 124, wantCols: 35,
-		},
-		{
-			name: "Event split 8",
-			commands: []string{
-				"\x1B[8;121\x1B[9;\x1B[8;",
-				"122;33t\x1B[8;124",
-				"35t\x1B",
-				"[8;126",
-				";37",
-			},
-			wantOut:  "\u001B[8;121\u001B[9;\u001B[8;12435t\u001B[8;126;37",
-			wantRows: 122, wantCols: 33,
-		},
-		{
-			name: "Event split 9",
-			commands: []string{
-				"\x1B[8;121\x1B[9;\x1B[8;",
-				"122;33\x1B[8;124",
-				"35t\x1B",
-				"[8;126",
-				";37",
-			},
-			wantOut:  "\u001B[8;121\u001B[9;\u001B[8;122;33\u001B[8;12435t\u001B[8;126;37",
-			wantRows: 0, wantCols: 0,
-		},
-		{
-			name: "Event split 10",
-			commands: []string{
-				"\x1B[8;121\x1B[9;\x1B[8;",
-				"122;33t\x1B[8;124",
-				";35\x1B",
-				"[8;126",
-				";37",
-			},
-			wantOut:  "\u001B[8;121\u001B[9;\u001B[8;124;35\u001B[8;126;37",
-			wantRows: 122, wantCols: 33,
-		},
-		{
-			name: "Event split 11",
-			commands: []string{
-				"\x1B[8;121\x1B[9;\x1B[8;122;33\x1B[8;12435t\x1B[8;126;37",
-			},
-			wantOut:  "\u001B[8;121\u001B[9;\u001B[8;122;33\u001B[8;12435t\u001B[8;126;37",
+			wantOut:  "\u001B[8;120;32t\u001B[8;121;33t\u001B[8;120;32",
 			wantRows: 0, wantCols: 0,
 		},
 		{
@@ -305,6 +220,14 @@ func Test_inPipe(t *testing.T) {
 			wantRows: 123, wantCols: 321,
 		},
 		{
+			name: "Event wrong 6",
+			commands: []string{
+				"\x1B[8;121\x1B[9;\x1B[8;122;33\x1B[8;12435t\x1B[8;126;37",
+			},
+			wantOut:  "\u001B[8;121\u001B[9;\u001B[8;122;33\u001B[8;12435t\u001B[8;126;37",
+			wantRows: 0, wantCols: 0,
+		},
+		{
 			name: "Event irrelevant 1",
 			commands: []string{
 				"this is \nsimple command\n\n",
@@ -333,6 +256,42 @@ func Test_inPipe(t *testing.T) {
 			},
 			wantOut:  "this is \nsimple command\n\n\u001B[8;\u001D]8;0twith \rmultiple lines\n\n",
 			wantRows: 0, wantCols: 0,
+		},
+		{
+			name: "Event dup 1",
+			commands: []string{
+				"\x1B[8;120;32t",
+				"\x1B[8;32;120t",
+			},
+			wantOut:  "",
+			wantRows: 32, wantCols: 120,
+		},
+		{
+			name: "Event dup 2",
+			commands: []string{
+				"\x1B[8;120;32t\x1B[8;32;120t",
+			},
+			wantOut:  "",
+			wantRows: 32, wantCols: 120,
+		},
+		{
+			name: "Event dup 3",
+			commands: []string{
+				"this is \nsimple command\n\n",
+				"\x1B[8;120;32t",
+				"with \rmultiple lines\n\n",
+				"\x1B[8;32;120t",
+			},
+			wantOut:  "this is \nsimple command\n\nwith \rmultiple lines\n\n",
+			wantRows: 32, wantCols: 120,
+		},
+		{
+			name: "Event dup 4",
+			commands: []string{
+				"this is \nsimple command\n\n\x1B[8;120;32twith \rsingle line\n\n\x1B[8;32;120t",
+			},
+			wantOut:  "this is \nsimple command\n\nwith \rsingle line\n\n",
+			wantRows: 32, wantCols: 120,
 		},
 	}
 

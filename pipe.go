@@ -57,198 +57,86 @@ func procWindowChangeEvent(eventPayload string, windowResize func(h int, w int) 
 
 func inPipe(from io.Reader, to io.Writer, windowResize func(h int, w int) error) error {
 	inBuf := make([]byte, DefaultBufferSize)
-	eventBuf := make([]byte, DefaultBufferSize)
-
-	evSize := 0
 
 	for {
 		// Receive data
 		n, err := from.Read(inBuf)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				if evSize > 0 {
-					// Still contain event cache data, send them all
-					_, err = to.Write(eventBuf[:evSize])
-					if err != nil {
-						return fmt.Errorf("failed to pipe to stdin: %w", err)
-					}
-				}
 				break
 			} else {
 				return fmt.Errorf("failed to read from stdin: %w", err)
 			}
 		}
 
-		// Set start index
-		start := 0
-		if evSize > 0 {
-			// Last loop remains unprocessed data, continue to process
-			if evSize < EscapeWindowChangePrefixLen {
-				// Prefix not matched, start to match prefix
-				for ; start+evSize <= EscapeWindowChangePrefixLen; start++ { // Start from the first byte after \x1B
-					eventBuf[start+evSize] = inBuf[start]
-					if inBuf[start] != EscapeWindowChangePrefix[start+evSize-1] {
-						// Mismatch
-						start = 0
-						break
-					}
-				}
+		dataBuf := inBuf[:n]
 
-				if start == 0 { // Mismatch
-					// Unable to handle this, send buffered event data to server
-					_, err = to.Write(eventBuf[:evSize])
-					if err != nil {
-						return fmt.Errorf("failed to pipe to stdin: %w", err)
-					}
-					evSize = 0 // reset
-				}
-			}
+		for { // Process all events in a single input event (latest one overwrites all before)
+			// Check if event exists
+			dataLen := len(dataBuf)
+			eventStartIndex := bytes.Index(dataBuf, EscapeWindowChangePrefix)
 
-			if evSize > 0 {
-				// Prefix match, start receiving event bytes till match suffix
-				for ; start < n; start++ {
-					eventBuf[start+evSize] = inBuf[start]
-					if inBuf[start] == EscapeWindowChangeSuffix {
-						break
-					}
-				}
-
-				if start >= n {
-					// Message incomplete, save it and wait for next loop
-					evSize += start
-					continue
-				}
-
-				// else: suffix match, message complete
-				// Maybe contain some incomplete event fragments, so go reversely to find if any prefix match
-				eventPayloadSliceFrom := EscapeWindowChangePrefixLen // discard prefix
-				eventPayload := eventBuf[:evSize+start]              // discard suffix
-				eventPrefixLastIndex := bytes.LastIndex(eventPayload, EscapeWindowChangePrefix)
-				if eventPrefixLastIndex != 0 {
-					// Include invalid events
-
-					// Send invalid events as raw content to writer
-					_, err = to.Write(eventPayload[:eventPrefixLastIndex])
-					if err != nil {
-						return fmt.Errorf("failed to pipe to stdin: %w", err)
-					}
-
-					// Slice from new location
-					eventPayloadSliceFrom = eventPrefixLastIndex + EscapeWindowChangePrefixLen
-				}
-				err = procWindowChangeEvent(string(eventPayload[eventPayloadSliceFrom:]), windowResize)
+			if eventStartIndex == -1 {
+				// No event, just pipe normally
+				_, err = to.Write(dataBuf[:dataLen])
 				if err != nil {
-					// Unable to handle this, send buffered event data to server
-					_, err = to.Write(eventBuf[eventPrefixLastIndex:evSize])
-					if err != nil {
-						return fmt.Errorf("failed to pipe to stdin: %w", err)
-					}
-					start = 0 // reset
-				} else {
-					start += 1 // Skip suffix
+					return fmt.Errorf("failed to pipe to stdin: %w", err)
 				}
-
-				evSize = 0 // reset
-			}
-		}
-
-		i := start
-
-		// Check byte by byte
-		for ; i < n; i++ {
-			if inBuf[i] == EscapeWindowChangePrefix[0] { // ESC for ANSI escape sequences
-				break
-			}
-		}
-
-		if i >= n {
-			// No event, just pipe normally
-			_, err = to.Write(inBuf[start:n])
-			if err != nil {
-				return fmt.Errorf("failed to pipe to stdin: %w", err)
-			}
-			continue // Proceed to next loop
-		}
-
-		// Otherwise: event caused early end
-		_, err = to.Write(inBuf[start:i]) // pipe data before event
-		if err != nil {
-			return fmt.Errorf("failed to pipe to stdin: %w", err)
-		}
-
-		// Match prefix
-		for evSize = 0; (i+evSize < n) && (evSize < EscapeWindowChangePrefixLen); evSize++ { // Start from the first byte
-			eventBuf[evSize] = inBuf[i+evSize]
-			if inBuf[i+evSize] != EscapeWindowChangePrefix[evSize] {
-				// Mismatch
-				evSize = 0
-				break
-			}
-		}
-
-		if evSize == 0 { // Mismatch
-			// Unable to handle this, send to server
-			_, err = to.Write(inBuf[i:n])
-			if err != nil {
-				return fmt.Errorf("failed to pipe to stdin: %w", err)
-			}
-			continue // Proceed to next loop
-		}
-
-		if i+evSize >= n {
-			// Message incomplete, save it and wait for next loop
-			continue
-		}
-
-		// else: prefix all match, extract all bytes into event buffer till match suffix
-		for ; i+evSize < n; evSize++ {
-			eventBuf[evSize] = inBuf[i+evSize]
-			if inBuf[i+evSize] == EscapeWindowChangeSuffix {
-				break
-			}
-		}
-
-		if i+evSize >= n {
-			// Message incomplete, save it and wait for next loop
-			continue
-		}
-
-		// else: event all extracted! time to analyse
-		// Maybe contain some incomplete event fragments, so go reversely to find if any prefix match
-		eventPayloadSliceFrom := EscapeWindowChangePrefixLen // discard prefix
-		eventPayload := eventBuf[:evSize]                    // discard suffix
-		eventPrefixLastIndex := bytes.LastIndex(eventPayload, EscapeWindowChangePrefix)
-		if eventPrefixLastIndex != 0 {
-			// Include invalid events
-
-			// Send invalid events as raw content to writer
-			_, err = to.Write(eventPayload[:eventPrefixLastIndex])
-			if err != nil {
-				return fmt.Errorf("failed to pipe to stdin: %w", err)
+				break // Proceed to next loop
+			} else if eventStartIndex > 0 { // 0 means nothing to send
+				// Send bytes before event
+				_, err = to.Write(dataBuf[:eventStartIndex])
+				if err != nil {
+					return fmt.Errorf("failed to pipe to stdin: %w", err)
+				}
 			}
 
-			// Slice from new location
-			eventPayloadSliceFrom = eventPrefixLastIndex + EscapeWindowChangePrefixLen
-		}
-		err = procWindowChangeEvent(string(eventPayload[eventPayloadSliceFrom:]), windowResize)
-		if err != nil {
-			// Something is wrong, we can't handle this event, so send without processing
-			evSize = 0                                           // reset
-			_, err = to.Write(inBuf[i+eventPrefixLastIndex : n]) // Send everything
-			if err != nil {
-				return fmt.Errorf("failed to proc window change event: %w", err)
+			// Match suffix
+			eventEndIndex := eventStartIndex + len(EscapeWindowChangePrefix)
+
+			// else: prefix all match, extract all bytes into event buffer till match suffix
+			for ; eventEndIndex < dataLen; eventEndIndex++ {
+				if dataBuf[eventEndIndex] == EscapeWindowChangeSuffix {
+					break
+				}
 			}
-			continue // Proceed to next loop
-		}
 
-		// Send remain bytes
-		_, err = to.Write(inBuf[i+evSize+1 : n])
-		if err != nil {
-			return fmt.Errorf("failed to pipe to stdin: %w", err)
-		}
+			if eventEndIndex >= dataLen {
+				// Incomplete event, just pipe normally
+				_, err = to.Write(dataBuf[eventStartIndex:])
+				if err != nil {
+					return fmt.Errorf("failed to pipe to stdin: %w", err)
+				}
+				break // Proceed to next loop
+			}
 
-		// Reset event size as already processed
-		evSize = 0
+			// else: event all extracted! time to analyse
+			// Maybe contain some incomplete event fragments, so go reversely to find if any prefix match
+			eventPayload := dataBuf[eventStartIndex:eventEndIndex] // discard suffix
+			eventPrefixLastIndex := bytes.LastIndex(eventPayload, EscapeWindowChangePrefix)
+			if eventPrefixLastIndex > 0 {
+				// Include invalid events
+
+				// Send invalid events as raw content
+				_, err = to.Write(eventPayload[:eventPrefixLastIndex])
+				if err != nil {
+					return fmt.Errorf("failed to pipe to stdin: %w", err)
+				}
+			}
+
+			// Process event
+			if err = procWindowChangeEvent(string(eventPayload[eventPrefixLastIndex+len(EscapeWindowChangePrefix):]), windowResize); err != nil {
+				// Something is wrong, we can't handle this event, so send without processing
+				_, err = to.Write(dataBuf[eventStartIndex+eventPrefixLastIndex:]) // Send everything
+				if err != nil {
+					return fmt.Errorf("failed to proc window change event: %w", err)
+				}
+				break // Proceed to next loop
+			}
+
+			// Continue to process remain bytes
+			dataBuf = dataBuf[eventEndIndex+1:]
+		}
 	}
 
 	return nil
