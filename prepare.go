@@ -91,7 +91,9 @@ func prepare() (targetServer *Server, jumpServer *Server, privateKeys []string, 
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				entryName := entry.Name()
-				if strings.HasPrefix(entryName, "id_") && !strings.HasSuffix(entryName, ".pub") {
+				if strings.HasPrefix(entryName, "id_") &&
+					!strings.HasSuffix(entryName, ".pub") &&
+					!strings.HasSuffix(entryName, "_sk") { // currently unsupported
 					// This might be our lucky king
 					privateKeys = append(privateKeys, filepath.Join(keyDir, entryName))
 				}
