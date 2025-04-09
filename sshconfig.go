@@ -21,6 +21,18 @@ func sshConfig(server *Server, keyAuth ssh.AuthMethod, knownHostsFilePath *strin
 		User:    *server.Username,
 		Auth:    authMethods,
 		Timeout: DefaultTimeout,
+		HostKeyAlgorithms: []string{
+			// Most secure one
+			ssh.KeyAlgoED25519,
+
+			// Relatively secure ones
+			ssh.KeyAlgoECDSA521,
+			ssh.KeyAlgoECDSA384,
+			ssh.KeyAlgoECDSA256,
+
+			// Keep for backward compatibility
+			ssh.KeyAlgoRSA,
+		},
 	}
 
 	if knownHostsFilePath != nil {
