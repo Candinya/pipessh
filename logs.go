@@ -3,7 +3,7 @@ package main
 import "os"
 
 func LogError(err error) {
-	_, _ = os.Stderr.WriteString(err.Error() + "\n")
+	_, _ = os.Stderr.WriteString(err.Error())
 }
 
 func LogPanic(err error) {
