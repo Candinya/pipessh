@@ -59,6 +59,25 @@ func prepare() (targetServer *Server, jumpServer *Server, privateKeys []string, 
 		targetServer.Port = flagServerPort
 	}
 
+	// Parse options
+	optionIdentitiesOnly := false
+	for _, option := range flagOptions {
+		optionSep := strings.SplitN(option, "=", 2)
+		if len(optionSep) < 2 {
+			// Skip invalid option
+			continue
+		}
+
+		switch optionSep[0] {
+		case "UserKnownHostsFile":
+			// Parse known_hosts file
+			knownHostsFilePath = &optionSep[1]
+		case "IdentitiesOnly":
+			// Only use specified identity
+			optionIdentitiesOnly = strings.ToLower(optionSep[1]) == "yes"
+		}
+	}
+
 	// Parse jump server if any
 	if flagJumpServer != "" {
 		jumpServer, err = parseServer(flagJumpServer)
@@ -72,8 +91,10 @@ func prepare() (targetServer *Server, jumpServer *Server, privateKeys []string, 
 
 	// Parse identity
 	if flagIdentity != "" {
-		privateKeys = []string{flagIdentity}
-	} else {
+		privateKeys = append(privateKeys, flagIdentity)
+	}
+	// Search for additional identity
+	if !optionIdentitiesOnly {
 		// Find user home to get possible private keys
 		homedir, err := os.UserHomeDir()
 		if err != nil {
@@ -98,19 +119,6 @@ func prepare() (targetServer *Server, jumpServer *Server, privateKeys []string, 
 					privateKeys = append(privateKeys, filepath.Join(keyDir, entryName))
 				}
 			}
-		}
-	}
-
-	// Parse known_hosts file
-	for _, option := range flagOptions {
-		optionSep := strings.SplitN(option, "=", 2)
-		if len(optionSep) < 2 {
-			// Skip invalid option
-			continue
-		}
-
-		if optionSep[0] == "UserKnownHostsFile" {
-			knownHostsFilePath = &optionSep[1]
 		}
 	}
 
