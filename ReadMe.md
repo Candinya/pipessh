@@ -1,6 +1,6 @@
 ## 关于
 
-这是一个为了 [Nekops](https://candymade.net/nekops) 定制的嵌入式 SSH 客户端，带有一些传统 SSH 客户端不支持的功能。
+这是一个为了 [Nekops](https://nekops.app) 定制的嵌入式 SSH 客户端，带有一些传统 SSH 客户端不支持的功能。
 
 请注意，为了实现交互执行了一些特殊处理，这个客户端并不适合作为直接交互使用（即使或许可以）。如果您有使用 SSH 的需求，请使用 OpenSSH 。
 
